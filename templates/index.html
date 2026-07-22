@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>X &rarr; 小红书 自动发布台</title>
+<style>
+  :root{--pink:#ff2e4d;--bg:#fff5f6;--card:#fff;--ink:#222;--mut:#888;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+       background:var(--bg);color:var(--ink);padding:16px;max-width:640px;margin:0 auto}
+  h1{font-size:20px;margin:8px 0 14px;display:flex;align-items:center;gap:8px}
+  .tag{font-size:11px;background:var(--pink);color:#fff;padding:2px 8px;border-radius:20px}
+  textarea{width:100%;height:84px;border:1px solid #ffd5dc;border-radius:14px;
+           padding:12px;font-size:15px;resize:none;outline:none;background:#fff}
+  textarea:focus{border-color:var(--pink)}
+  .row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  button{flex:1;min-width:96px;border:none;border-radius:14px;padding:13px;
+         font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+  .primary{background:var(--pink);color:#fff}
+  .ghost{background:#ffe3e8;color:var(--pink)}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .card{background:var(--card);border-radius:18px;padding:16px;margin-top:18px;
+        box-shadow:0 6px 20px rgba(255,46,77,.08);display:none}
+  .badge{font-size:11px;padding:3px 9px;border-radius:20px;background:#fff0f3;color:var(--pink);font-weight:600}
+  /* Carousel Style */
+  .carousel-container {
+    position: relative;
+    width: 100%;
+    border-radius: 14px;
+    overflow: hidden;
+    background: #f7f7f7;
+    margin-bottom: 14px;
+    aspect-ratio: 3/4;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.05);
+  }
+  .carousel-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  .carousel-slide {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+  }
+  .carousel-slide img, .carousel-slide video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  .carousel-nav {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    transform: translateY(-50%);
+    display: flex;
+    justify-content: space-between;
+    padding: 0 10px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .carousel-container:hover .carousel-nav {
+    opacity: 1;
+  }
+  .carousel-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    border: none;
+    color: #333;
+    font-weight: bold;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    transition: background 0.2s, transform 0.1s;
+  }
+  .carousel-btn:hover { background: #fff; }
+  .carousel-btn:active { transform: scale(0.9); }
+  .carousel-indicators {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 6px;
+    background: rgba(0,0,0,0.4);
+    padding: 4px 8px;
+    border-radius: 10px;
+    z-index: 10;
+  }
+  .carousel-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.4);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .carousel-dot.active {
+    background: #fff;
+    transform: scale(1.2);
+  }
+  .fld{font-size:12px;color:var(--mut);margin:14px 0 6px;font-weight:600}
+  .edit{width:100%;border:1px solid #ffd5dc;border-radius:12px;padding:10px 12px;
+        font-size:15px;outline:none;background:#fff;font-family:inherit;color:var(--ink)}
+  .edit:focus{border-color:var(--pink)}
+  .edit.area{resize:vertical;line-height:1.6;min-height:120px}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+  .chip{font-size:13px;background:#fff0f3;color:var(--pink);padding:5px 10px;border-radius:20px}
+  .gallery{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:4px}
+  .gitem{position:relative;flex:none}
+  .gitem img,.gitem video{height:120px;border-radius:10px;display:block;background:#eee}
+  .gitem .cover-badge {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    background: var(--pink);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    pointer-events: none;
+  }
+  .gitem .set-cover-btn {
+    position: absolute;
+    bottom: 6px;
+    left: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: none;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .gitem .set-cover-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+  }
+  .gdel{position:absolute;top:-9px;right:-9px;width:24px;height:24px;border-radius:50%;
+        background:var(--pink);color:#fff;border:none;font-size:15px;line-height:22px;
+        cursor:pointer;padding:0;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+  .status{margin-top:14px;font-size:14px;padding:10px 12px;border-radius:12px;display:none}
+  .ok{background:#e9f9ef;color:#1a7f43}
+  .err{background:#fdecec;color:#c0392b}
+  .meta{font-size:12px;color:var(--mut);margin-top:8px}
+  .log{margin-top:18px;font-size:13px;color:var(--mut);border-top:1px dashed #ffd5dc;padding-top:12px}
+</style>
+</head>
+<body>
+  <h1>&#128246; X &rarr; 小红书 自动发布台 <span class="tag" id="net">&hellip;</span>
+    <button class="ghost" id="loginBtn" style="font-size:12px; padding:6px 12px; min-width:auto; margin-left:10px; display:inline-block; border-radius:10px; vertical-align:middle;">🔑 登录小红书</button>
+  </h1>
+
+  <textarea id="url" placeholder="把 X 推文链接粘贴到这里&lpar;x.com / twitter.com 的 status 链接&rpar;"></textarea>
+  <div class="row">
+    <button class="primary" id="gen">生成预览</button>
+    <button class="ghost" id="demoImg">新建图文</button>
+    <button class="ghost" id="demoVid">新建视频</button>
+  </div>
+
+  <div class="card" id="card">
+    <span class="badge" id="mtype"></span>
+    <!-- 小红书多图跑马灯预览 -->
+    <div class="carousel-container" id="carouselContainer">
+      <div class="carousel-track" id="carouselTrack"></div>
+      <div class="carousel-nav" id="carouselNav">
+        <button class="carousel-btn prev" id="carouselPrev" type="button">&lt;</button>
+        <button class="carousel-btn next" id="carouselNext" type="button">&gt;</button>
+      </div>
+      <div class="carousel-indicators" id="carouselIndicators"></div>
+    </div>
+    <div class="fld">标题（最多 20 字）</div>
+    <input class="edit" id="ptitle" maxlength="20">
+    <div class="fld">正文</div>
+    <textarea class="edit area" id="pbody"></textarea>
+    <div class="fld">标签（空格分隔，如：#AI #ChatGPT）</div>
+    <input class="edit" id="ptags">
+    <div class="fld" id="galFld">图片（可删除 / 添加）</div>
+    <div class="gallery" id="gallery"></div>
+    <div class="row" id="imgBtns" style="display:none">
+      <button class="ghost" id="addImg" type="button">+ 添加图片</button>
+      <input type="file" id="fileIn" accept="image/*" multiple hidden>
+    </div>
+    <div class="meta" id="meta"></div>
+    <div class="row">
+      <button class="ghost" id="save" type="button">保存修改</button>
+      <button class="primary" id="publish" type="button">确认发布到小红书</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+let curId = null;
+let curType = 'image';
+let curMedia = [];
+
+async function post(url, body){
+  const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  return r.json();
+}
+
+function showStatus(msg, ok){
+  const s = $('#status');
+  if(!msg){ s.style.display='none'; return; }
+  s.style.display='block';
+  s.className = 'status ' + (ok ? 'ok':'err');
+  s.textContent = msg;
+}
+function log(msg){ $('#log').innerHTML += '&middot; ' + msg + '<br>'; }
+
+async function doProcess(req, btn){
+  const all = [$('#gen'), $('#demoImg'), $('#demoVid')];
+  all.forEach(b => b.disabled = true);
+  if(btn) btn.textContent = '生成中…';
+  showStatus('正在生成，通常几秒到十几秒，请稍候（抓取依赖网络）…', true);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120000);
+  try {
+    const r = await fetch('/api/process', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(req),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+    const j = await r.json();
+    if(!j.ok){ showStatus('✖ ' + j.error, false); log('生成失败：'+j.error); }
+    else { render(j.job); log('已生成预览：' + j.job.title); showStatus('', true); }
+  } catch(e) {
+    clearTimeout(timer);
+    if(e.name === 'AbortError'){
+      showStatus('⏱ 生成超时（120秒）。多半是抓取服务连不上网络，可重试，或检查网络/代理设置。', false);
+      log('生成超时');
+    } else {
+      showStatus('✖ 请求失败：' + e.message, false);
+      log('请求失败：' + e.message);
+    }
+  } finally {
+    all.forEach(b => b.disabled = false);
+    $('#gen').textContent = '生成预览';
+    $('#demoImg').textContent = '新建图文';
+    $('#demoVid').textContent = '新建视频';
+  }
+}
+
+// 从空白页面新建图文 / 视频
+async function newBlank(media_type, btn){
+  const all = [$('#gen'), $('#demoImg'), $('#demoVid')];
+  all.forEach(b => b.disabled = true);
+  if(btn) btn.textContent = '创建中…';
+  showStatus('正在新建空白笔记…', true);
+  try {
+    const r = await post('/api/job/new', {media_type});
+    if(!r.ok){ showStatus('✖ ' + r.error, false); log('新建失败：'+r.error); }
+    else {
+      render(r.job);
+      const label = media_type === 'video' ? '视频' : '图文';
+      log('已新建空白' + label + '笔记（' + r.job.id + '）');
+      showStatus('✔ 已新建空白' + label + '笔记：标题/正文/标签可直接编辑，图片或视频请用「添加」按钮上传，改完点「保存修改」', true);
+    }
+  } catch(e){
+    showStatus('✖ 请求失败：' + e.message, false);
+    log('请求失败：' + e.message);
+  } finally {
+    all.forEach(b => b.disabled = false);
+    $('#gen').textContent = '生成预览';
+    $('#demoImg').textContent = '新建图文';
+    $('#demoVid').textContent = '新建视频';
+  }
+}
+
+function render(job){
+  curId = job.id;
+  curType = job.media_type || 'image';
+  curMedia = (job.media || []).slice();
+  $('#card').style.display='block';
+  $('#mtype').textContent = curType === 'video' ? '视频笔记' : '图文笔记';
+  $('#ptitle').value = job.title || '';
+  $('#pbody').value = job.body || '';
+  $('#ptags').value = (job.hashtags || []).join(' ');
+  renderAll();
+  $('#meta').textContent = '作者：' + (job.author_name||'-') + ' @' + (job.author_handle||'-')
+     + ' ｜ 原文：' + (job.original_text ? job.original_text.slice(0,40)+'…' : '（纯媒体）');
+  const isVideo = curType === 'video';
+  $('#imgBtns').style.display = 'flex';
+  $('#galFld').style.display = 'block';
+  $('#galFld').textContent = isVideo ? '视频（可替换上传）' : '图片（可删除 / 添加）';
+  $('#addImg').textContent = isVideo ? '+ 添加视频' : '+ 添加图片';
+  $('#fileIn').accept = isVideo ? 'video/*' : 'image/*';
+  $('#fileIn').multiple = !isVideo;
+  $('#publish').disabled = false;
+  $('#publish').textContent = '确认发布到小红书';
+  showStatus('', true);
+}
+
+let curSlideIndex = 0;
+
+function renderAll() {
+  renderCarousel();
+  renderGallery();
+}
+
+function renderCarousel() {
+  const track = $('#carouselTrack'); track.innerHTML = '';
+  const indicators = $('#carouselIndicators'); indicators.innerHTML = '';
+  const isVideo = curType === 'video';
+
+  if (!curMedia.length) {
+    $('#carouselContainer').style.display = 'none';
+    return;
+  }
+  $('#carouselContainer').style.display = 'block';
+
+  curMedia.forEach((m, idx) => {
+    const slide = document.createElement('div');
+    slide.className = 'carousel-slide';
+    const isThisVideo = isVideo && /\.(mp4|webm|mov|m4v|avi)$/i.test(m);
+    const mediaEl = document.createElement(isThisVideo ? 'video' : 'img');
+    mediaEl.src = '/' + m;
+    if (isThisVideo) mediaEl.controls = true;
+    slide.appendChild(mediaEl);
+    track.appendChild(slide);
+
+    const dot = document.createElement('span');
+    dot.className = 'carousel-dot' + (idx === curSlideIndex ? ' active' : '');
+    dot.onclick = () => goToSlide(idx);
+    indicators.appendChild(dot);
+  });
+
+  if (curSlideIndex >= curMedia.length) curSlideIndex = 0;
+  updateCarousel();
+
+  if (curMedia.length <= 1) {
+    $('#carouselNav').style.display = 'none';
+    $('#carouselIndicators').style.display = 'none';
+  } else {
+    $('#carouselNav').style.display = 'flex';
+    $('#carouselIndicators').style.display = 'flex';
+  }
+}
+
+function goToSlide(idx) {
+  if (idx < 0) idx = curMedia.length - 1;
+  if (idx >= curMedia.length) idx = 0;
+  curSlideIndex = idx;
+  updateCarousel();
+}
+
+function updateCarousel() {
+  const track = $('#carouselTrack');
+  track.style.transform = `translateX(-${curSlideIndex * 100}%)`;
+
+  const dots = document.querySelectorAll('.carousel-dot');
+  dots.forEach((dot, idx) => {
+    if (idx === curSlideIndex) dot.classList.add('active');
+    else dot.classList.remove('active');
+  });
+}
+
+// Bind carousel events once
+$('#carouselPrev').onclick = () => goToSlide(curSlideIndex - 1);
+$('#carouselNext').onclick = () => goToSlide(curSlideIndex + 1);
+
+function renderGallery(){
+  const g = $('#gallery'); g.innerHTML='';
+  const isVideo = curType === 'video';
+  curMedia.forEach((m, idx) => {
+    const item = document.createElement('div'); item.className='gitem';
+    const isThisVideo = isVideo && /\.(mp4|webm|mov|m4v|avi)$/i.test(m);
+    const el = document.createElement(isThisVideo ? 'video' : 'img');
+    el.src = '/' + m; if(isThisVideo) el.controls = true;
+    item.appendChild(el);
+    
+    if(!isVideo) {
+      if(idx === 0) {
+        const badge = document.createElement('span');
+        badge.className = 'cover-badge';
+        badge.textContent = '封面';
+        item.appendChild(badge);
+      } else {
+        const setCoverBtn = document.createElement('button');
+        setCoverBtn.className = 'set-cover-btn';
+        setCoverBtn.type = 'button';
+        setCoverBtn.textContent = '设为封面';
+        setCoverBtn.onclick = () => {
+          // Swap
+          const temp = curMedia[0];
+          curMedia[0] = curMedia[idx];
+          curMedia[idx] = temp;
+          renderAll();
+        };
+        item.appendChild(setCoverBtn);
+      }
+      
+      const del = document.createElement('button');
+      del.className = 'gdel'; del.type='button'; del.textContent='×';
+      del.title = '删除这张图';
+      del.onclick = () => {
+        curMedia.splice(idx, 1);
+        if (curSlideIndex >= curMedia.length) curSlideIndex = Math.max(0, curMedia.length - 1);
+        renderAll();
+      };
+      item.appendChild(del);
+    } else {
+      const del = document.createElement('button');
+      del.className = 'gdel'; del.type='button'; del.textContent='×';
+      del.title = '删除此文件';
+      del.onclick = () => {
+        curMedia.splice(idx, 1);
+        renderAll();
+      };
+      item.appendChild(del);
+    }
+    g.appendChild(item);
+  });
+}
+
+$('#gen').onclick = () => doProcess({url:$('#url').value, demo:false}, $('#gen'));
+$('#demoImg').onclick = () => newBlank('image', $('#demoImg'));
+$('#demoVid').onclick = () => newBlank('video', $('#demoVid'));
+
+// 添加图片：上传到后端，成功后追加到图库
+$('#addImg').onclick = () => $('#fileIn').click();
+$('#fileIn').onchange = async (e) => {
+  const files = e.target.files;
+  if(!files || !files.length) return;
+  if(!curId){ showStatus('✖ 请先生成预览，再添加图片', false); $('#fileIn').value=''; return; }
+  const total = files.length;
+  let done = 0, ok = 0;
+  for(const f of files){
+    done++;
+    const fd = new FormData(); fd.append('file', f);
+    showStatus('正在上传图片（' + done + '/' + total + '）…', true);
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 30000);
+    try {
+      const r = await fetch('/api/job/' + curId + '/upload', {method:'POST', body: fd, signal: ctrl.signal});
+      clearTimeout(timer);
+      const j = await r.json();
+      if(j.ok){
+        if(j.kind === 'video'){ curMedia = [j.rel]; }
+        else { curMedia.push(j.rel); }
+        ok++; log('已添加' + (j.kind === 'video' ? '视频' : '图片') + '：' + j.rel);
+      }
+      else { showStatus('✖ 上传失败：' + (j.error || '未知错误'), false); log('上传失败：' + (j.error || '未知错误')); }
+    } catch(err){
+      clearTimeout(timer);
+      if(err.name === 'AbortError'){ showStatus('⏱ 上传超时（30秒）。图片可能过大，或服务未重启为新版本。', false); }
+      else { showStatus('✖ 上传失败：' + err.message, false); }
+      log('上传失败：' + err.message);
+    }
+  }
+  $('#fileIn').value = '';
+  renderAll();
+  if(ok > 0){
+    const what = curType === 'video' ? '视频' : (ok + ' 张图片');
+    showStatus('✔ 已添加 ' + what + '（记得点「保存修改」生效）', true);
+  }
+  else if(!$('#status').textContent.includes('失败') && !$('#status').textContent.includes('超时')) showStatus('', true);
+};
+
+// 保存修改
+$('#save').onclick = async () => {
+  if(!curId) return;
+  const tags = $('#ptags').value.trim().split(/\s+/).filter(t => t.length);
+  const payload = { title: $('#ptitle').value, body: $('#pbody').value, hashtags: tags, media: curMedia };
+  $('#save').disabled = true; $('#save').textContent = '保存中…';
+  try {
+    const r = await post('/api/job/' + curId + '/update', payload);
+    if(r.ok){ showStatus('✔ 修改已保存', true); log('已保存修改：' + curId); }
+    else { showStatus('✖ 保存失败：' + r.error, false); log('保存失败：' + r.error); }
+  } catch(err){ showStatus('✖ 保存失败：' + err.message, false); }
+  finally { $('#save').disabled = false; $('#save').textContent = '保存修改'; }
+};
+
+$('#publish').onclick = async () => {
+  if(!curId) return;
+  $('#publish').disabled = true; $('#publish').textContent='发布中…';
+  showStatus('🚀 正在发布，请在浏览器弹窗/后台留意小红书登录…', true);
+  const r = await post('/api/publish/' + curId, {});
+  if(r.ok && r.result && r.result.ok){
+    showStatus('✔ 发布成功！' + (r.result.url?(' 链接：'+r.result.url):''), true);
+    log('发布成功：' + curId);
+    $('#publish').textContent='已发布';
+  } else {
+    const err = (r.error) || (r.result && r.result.error) || '未知错误';
+    showStatus('✖ 发布失败：' + err, false);
+    log('发布失败：' + err);
+    $('#publish').disabled=false; $('#publish').textContent='重试发布';
+  }
+};
+
+$('#loginBtn').onclick = async () => {
+  $('#loginBtn').disabled = true;
+  $('#loginBtn').textContent = '等待登录…';
+  showStatus('⚠️ 浏览器窗口已在电脑桌面上打开，请在弹出的浏览器窗口中扫码或输入验证码完成小红书登录…', true);
+  try {
+    const r = await post('/api/login', {});
+    if (r.ok && r.result && r.result.ok) {
+      showStatus('✔ 小红书登录成功并已保存 Cookies！接下来可以正常发布了。', true);
+      $('#loginBtn').textContent = '🔑 已登录 (点此重登)';
+      $('#loginBtn').style.background = '#e9f9ef';
+      $('#loginBtn').style.color = '#1a7f43';
+    } else {
+      const err = r.error || (r.result && r.result.error) || '登录超时或失败';
+      showStatus('✖ 登录失败：' + err, false);
+      $('#loginBtn').textContent = '🔑 登录小红书';
+      $('#loginBtn').style.background = '';
+      $('#loginBtn').style.color = '';
+    }
+  } catch (err) {
+    showStatus('✖ 登录异常：' + err.message, false);
+    $('#loginBtn').textContent = '🔑 登录小红书';
+    $('#loginBtn').style.background = '';
+    $('#loginBtn').style.color = '';
+  } finally {
+    $('#loginBtn').disabled = false;
+  }
+};
+
+(async()=>{ 
+  try {
+    const r = await fetch('/api/health'); 
+    const j = await r.json(); 
+    $('#net').textContent = j.ok?'在线':'离线'; 
+    
+    // 检查登录状态
+    const lr = await fetch('/api/login/status');
+    const lj = await lr.json();
+    if (lj.logged_in) {
+      $('#loginBtn').textContent = '🔑 已登录 (点此重登)';
+      $('#loginBtn').style.background = '#e9f9ef';
+      $('#loginBtn').style.color = '#1a7f43';
+    } else {
+      $('#loginBtn').textContent = '🔑 登录小红书';
+    }
+  } catch(e) {}
+})();
+</script>
+</body>
+</html>

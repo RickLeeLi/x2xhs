@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+data/
+cookies/
+*.mp4
+*.png
+*.jpg
+node_modules/
