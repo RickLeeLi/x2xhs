@@ -70,23 +70,41 @@ def _click_tab_by_text(page, text):
     多策略：先宽松文本匹配所有可点击元素，再精确匹配，最后 Playwright 兜底。"""
     # 策略 1：JS 宽松匹配——搜所有可见元素，文本包含目标词即可
     found = page.evaluate("""(txt) => {
-        // 广泛搜索所有可能承载 tab 文本的元素
         const allEls = document.querySelectorAll('span, div, a, li, button, [role="tab"], [class*="tab"], p');
-        // 先尝试精确匹配
+        const isSidebar = (el) => {
+            let parent = el;
+            while (parent) {
+                const cls = (parent.className || '').toString().toLowerCase();
+                const id = (parent.id || '').toString().toLowerCase();
+                if (cls.includes('side') || cls.includes('menu') || cls.includes('nav') ||
+                    id.includes('side') || id.includes('menu') || id.includes('nav')) {
+                    return true;
+                }
+                parent = parent.parentElement;
+            }
+            return false;
+        };
+
+        // 1. 精确匹配（非侧栏）
+        for (const el of allEls) {
+            if (el.textContent.trim() === txt && el.offsetParent !== null && !isSidebar(el)) {
+                el.click();
+                return 'exact_non_sidebar';
+            }
+        }
+        // 2. 包含匹配（非侧栏）
+        for (const el of allEls) {
+            const t = el.textContent.trim();
+            if ((t === txt || (t.includes(txt) && t.length < txt.length + 5)) && el.offsetParent !== null && !isSidebar(el)) {
+                el.click();
+                return 'contains_non_sidebar:' + t;
+            }
+        }
+        // 3. 兜底匹配（侧栏）
         for (const el of allEls) {
             if (el.textContent.trim() === txt && el.offsetParent !== null) {
                 el.click();
-                return 'exact';
-            }
-        }
-        // 再尝试包含匹配（排除更长的干扰文本如「发布笔记▾」）
-        for (const el of allEls) {
-            const t = el.textContent.trim();
-            if (t === txt || (t.includes(txt) && t.length < txt.length + 5)) {
-                if (el.offsetParent !== null) {
-                    el.click();
-                    return 'contains:' + t;
-                }
+                return 'exact_sidebar';
             }
         }
         return null;
